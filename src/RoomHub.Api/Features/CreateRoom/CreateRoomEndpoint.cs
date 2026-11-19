@@ -1,5 +1,5 @@
-using RoomHub.Api.Models;
-using RoomHub.Api.Repositories;
+using RoomHub.Api.Common;
+using RoomHub.Api.Domain;
 
 namespace RoomHub.Api.Features.CreateRoom;
 
@@ -11,36 +11,19 @@ public static class CreateRoomEndpoint
 {
     public static void MapCreateRoom(this IEndpointRouteBuilder app)
     {
-        app.MapPost("/api/rooms", (CreateRoomRequest? request, RoomRepository rooms) =>
+        app.MapPost("/api/rooms", async (
+            CreateRoomRequest request,
+            ICommandHandler<CreateRoomCommand, Result<Room>> handler,
+            CancellationToken ct) =>
         {
-            if (request is null || string.IsNullOrWhiteSpace(request.Name))
-            {
-                return Results.Problem(
-                    statusCode: StatusCodes.Status400BadRequest,
-                    title: "ValidationFailed",
-                    detail: "Room name is required.");
-            }
+            var command = new CreateRoomCommand(request.Name, request.Capacity);
+            var result = await handler.HandleAsync(command, ct);
 
-            if (request.Capacity <= 0)
-            {
-                return Results.Problem(
-                    statusCode: StatusCodes.Status400BadRequest,
-                    title: "ValidationFailed",
-                    detail: "Capacity must be positive.");
-            }
-
-            var room = new Room
-            {
-                Id = Guid.NewGuid(),
-                Name = request.Name.Trim(),
-                Capacity = request.Capacity
-            };
-
-            rooms.Add(room);
-
-            return Results.Created(
-                $"/api/rooms/{room.Id}",
-                new CreateRoomResponse(room.Id, room.Name, room.Capacity));
+            return result.IsSuccess
+                ? Results.Created(
+                    $"/api/rooms/{result.Value.Id}",
+                    new CreateRoomResponse(result.Value.Id, result.Value.Name, result.Value.Capacity))
+                : result.Error.ToProblem();
         }).WithTags("Rooms");
     }
 }

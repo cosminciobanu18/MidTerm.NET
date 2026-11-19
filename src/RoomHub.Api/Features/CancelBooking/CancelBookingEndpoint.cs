@@ -1,5 +1,4 @@
-using RoomHub.Api.Models;
-using RoomHub.Api.Repositories;
+using RoomHub.Api.Common;
 
 namespace RoomHub.Api.Features.CancelBooking;
 
@@ -7,28 +6,17 @@ public static class CancelBookingEndpoint
 {
     public static void MapCancelBooking(this IEndpointRouteBuilder app)
     {
-        app.MapPost("/api/bookings/{id:guid}/cancel", (Guid id, BookingRepository bookings) =>
+        app.MapPost("/api/bookings/{id:guid}/cancel", async (
+            Guid id,
+            ICommandHandler<CancelBookingCommand, Result> handler,
+            CancellationToken ct) =>
         {
-            var booking = bookings.Get(id);
-            if (booking is null)
-            {
-                return Results.Problem(
-                    statusCode: StatusCodes.Status404NotFound,
-                    title: "NotFound",
-                    detail: "The booking does not exist.");
-            }
+            var command = new CancelBookingCommand(id);
+            var result = await handler.HandleAsync(command, ct);
 
-            if (booking.Status == BookingStatus.Cancelled)
-            {
-                return Results.Problem(
-                    statusCode: StatusCodes.Status409Conflict,
-                    title: "Conflict",
-                    detail: "The booking is already cancelled.");
-            }
-
-            booking.Status = BookingStatus.Cancelled;
-
-            return Results.NoContent();
+            return result.IsSuccess
+                ? Results.NoContent()
+                : result.Error.ToProblem();
         }).WithTags("Bookings");
     }
 }

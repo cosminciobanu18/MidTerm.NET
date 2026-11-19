@@ -1,4 +1,5 @@
-using RoomHub.Api.Repositories;
+using RoomHub.Api.Common;
+using RoomHub.Api.Domain;
 
 namespace RoomHub.Api.Features.GetRoom;
 
@@ -8,18 +9,17 @@ public static class GetRoomEndpoint
 {
     public static void MapGetRoom(this IEndpointRouteBuilder app)
     {
-        app.MapGet("/api/rooms/{id:guid}", (Guid id, RoomRepository rooms) =>
+        app.MapGet("/api/rooms/{id:guid}", async (
+            Guid id,
+            IQueryHandler<GetRoomQuery, Result<Room>> handler,
+            CancellationToken ct) =>
         {
-            var room = rooms.Get(id);
-            if (room is null)
-            {
-                return Results.Problem(
-                    statusCode: StatusCodes.Status404NotFound,
-                    title: "NotFound",
-                    detail: "The room does not exist.");
-            }
+            var query = new GetRoomQuery(id);
+            var result = await handler.HandleAsync(query, ct);
 
-            return Results.Ok(new GetRoomResponse(room.Id, room.Name, room.Capacity));
+            return result.IsSuccess
+                ? Results.Ok(new GetRoomResponse(result.Value.Id, result.Value.Name, result.Value.Capacity))
+                : result.Error.ToProblem();
         }).WithTags("Rooms");
     }
 }

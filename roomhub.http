@@ -52,4 +52,82 @@ Content-Type: application/json
 ### 7. Cancel booking
 POST {{baseUrl}}/api/bookings/{{bookingId}}/cancel
 
-### 8. Add your own requests here for the rules in ASSIGNMENT.md
+### 8. Missing room with invalid payload (expected: 404, NOT 400)
+POST {{baseUrl}}/api/rooms/00000000-0000-0000-0000-000000000001/bookings
+Content-Type: application/json
+
+{
+  "bookedBy": "",
+  "startUtc": "2020-01-10T10:00:00Z",
+  "endUtc": "2020-01-10T09:00:00Z",
+  "attendees": -5
+}
+
+### 9. Attendees over room capacity - R4 (expected: 400)
+POST {{baseUrl}}/api/rooms/{{roomId}}/bookings
+Content-Type: application/json
+
+{
+  "bookedBy": "ana",
+  "startUtc": "2030-01-11T10:00:00Z",
+  "endUtc": "2030-01-11T11:00:00Z",
+  "attendees": 11
+}
+
+### 10. Booking in the past - R5 (expected: 400)
+POST {{baseUrl}}/api/rooms/{{roomId}}/bookings
+Content-Type: application/json
+
+{
+  "bookedBy": "ana",
+  "startUtc": "2020-01-10T10:00:00Z",
+  "endUtc": "2020-01-10T11:00:00Z",
+  "attendees": 2
+}
+
+### 11. Duration over 4 hours - R6 (expected: 400)
+POST {{baseUrl}}/api/rooms/{{roomId}}/bookings
+Content-Type: application/json
+
+{
+  "bookedBy": "ana",
+  "startUtc": "2030-01-12T10:00:00Z",
+  "endUtc": "2030-01-12T14:01:00Z",
+  "attendees": 2
+}
+
+### 12. Duration exactly 4 hours - R6 (expected: 201)
+POST {{baseUrl}}/api/rooms/{{roomId}}/bookings
+Content-Type: application/json
+
+{
+  "bookedBy": "ana",
+  "startUtc": "2030-01-12T10:00:00Z",
+  "endUtc": "2030-01-12T14:00:00Z",
+  "attendees": 2
+}
+
+### 13. Touching interval right after #12 - R7 (expected: 201)
+POST {{baseUrl}}/api/rooms/{{roomId}}/bookings
+Content-Type: application/json
+
+{
+  "bookedBy": "bogdan",
+  "startUtc": "2030-01-12T14:00:00Z",
+  "endUtc": "2030-01-12T16:00:00Z",
+  "attendees": 2
+}
+
+### 14. Double cancel on #4 booking - R8 (expected: 409)
+POST {{baseUrl}}/api/bookings/{{bookingId}}/cancel
+
+### 15. Re-book freed interval from #4 - R8 (expected: 201)
+POST {{baseUrl}}/api/rooms/{{roomId}}/bookings
+Content-Type: application/json
+
+{
+  "bookedBy": "elena",
+  "startUtc": "2030-01-10T10:00:00Z",
+  "endUtc": "2030-01-10T12:00:00Z",
+  "attendees": 3
+}
