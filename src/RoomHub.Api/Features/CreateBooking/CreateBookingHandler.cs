@@ -1,27 +1,29 @@
 using RoomHub.Api.Common;
 using RoomHub.Api.Domain;
-using RoomHub.Api.Repositories;
 
 namespace RoomHub.Api.Features.CreateBooking;
 
 public class CreateBookingHandler(
-    RoomRepository rooms,
-    BookingRepository bookings,
+    IRoomRepository rooms,
+    IBookingRepository bookings,
+    IUnitOfWork unitOfWork,
     TimeProvider timeProvider)
     : ICommandHandler<CreateBookingCommand, Result<Booking>>
 {
-    public Task<Result<Booking>> HandleAsync(CreateBookingCommand command, CancellationToken ct = default)
+    public async Task<Result<Booking>> HandleAsync(CreateBookingCommand command, CancellationToken ct = default)
     {
-        var room = rooms.Get(command.RoomId);
+        var room = await rooms.GetByIdAsync(command.RoomId, ct);
         if (room is null)
         {
-            return Task.FromResult(Result<Booking>.Failure(
-                Error.NotFound("RoomNotFound", "The room does not exist.")));
+            return Result<Booking>.Failure(
+                Error.NotFound("RoomNotFound", "The room does not exist."));
         }
 
-        var existingRoomBookings = bookings.ListForRoom(command.RoomId);
-        var existingParticipantBookings = !string.IsNullOrWhiteSpace(command.BookedBy)
-            ? bookings.ListActiveForParticipantOnDate(command.BookedBy.Trim(), command.StartUtc)
+        var overlappingBookings = await bookings.GetActiveOverlappingAsync(
+            command.RoomId, command.StartUtc, command.EndUtc, ct);
+
+        var participantBookings = !string.IsNullOrWhiteSpace(command.BookedBy)
+            ? await bookings.ListActiveForParticipantOnDateAsync(command.BookedBy.Trim(), command.StartUtc, ct)
             : [];
 
         var result = Booking.Create(
@@ -30,15 +32,18 @@ public class CreateBookingHandler(
             command.StartUtc,
             command.EndUtc,
             command.Attendees,
-            existingRoomBookings,
-            existingParticipantBookings,
+            overlappingBookings,
+            participantBookings,
             timeProvider);
 
-        if (result.IsSuccess)
+        if (result.IsFailure)
         {
-            bookings.Add(result.Value);
+            return result;
         }
 
-        return Task.FromResult(result);
+        bookings.Add(result.Value);
+        await unitOfWork.SaveChangesAsync(ct);
+
+        return result;
     }
 }

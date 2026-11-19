@@ -1,21 +1,20 @@
 using RoomHub.Api.Common;
 using RoomHub.Api.Domain;
-using RoomHub.Api.Repositories;
 
 namespace RoomHub.Api.Features.GetBooking;
 
-public class GetBookingHandler(BookingRepository bookings)
+public class GetBookingHandler(IBookingRepository bookings)
     : IQueryHandler<GetBookingQuery, Result<Booking>>
 {
-    public Task<Result<Booking>> HandleAsync(GetBookingQuery query, CancellationToken ct = default)
+    public async Task<Result<Booking>> HandleAsync(GetBookingQuery query, CancellationToken ct = default)
     {
-        var booking = bookings.Get(query.Id);
+        var booking = await bookings.GetByIdAsync(query.Id, ct);
         if (booking is null)
         {
-            return Task.FromResult(Result<Booking>.Failure(
-                Error.NotFound("BookingNotFound", "The booking does not exist.")));
+            return Result<Booking>.Failure(
+                Error.NotFound("BookingNotFound", "The booking does not exist."));
         }
 
-        return Task.FromResult(Result<Booking>.Success(booking));
+        return Result<Booking>.Success(booking);
     }
 }
