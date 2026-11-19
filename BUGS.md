@@ -5,9 +5,9 @@ Fill it in yourself, in your own words. There is no required number: what counts
 
 | Which rule from ASSIGNMENT.md is violated (R1–R8) | Where the problem was in the starter (file, approximate line) | How you discovered it (test, reading, AI) | What you changed |
 |---|---|---|---|
-| R5 | RoomHub.Api.Services.BookingService (metoda Create) | AI | _(fill in)_ startUtc poate fi in trecut|
-| R6 | RoomHub.Api.Services.BookingService (metoda Create) | AI | _(fill in)_ nu se verifica durata de 4h |
-| R7 | RoomHub.Api.Services.BookingService (liniile 26-30 in foreach) | AI | _(fill in)_ <= la suprapunere|
-| R7 | RoomHub.Api.Services.BookingService (liniile 26-30 in foreach) | AI | _(fill in)_ itereaza inclusiv prin bookingurile anulate|
-| R8 | RoomHub.Api.Services.BookingService (liniile 56-61 in functia Cancel) | AI | _(fill in)_ nu se returneaza 409 daca anulam de 2 ori|
-| R8 | RoomHub.Api.Models.Booking (liniile 56-61 in functia Cancel) | AI | _(fill in)_ status are setter public|
+| R5 | RoomHub.Api.Services.BookingService (metoda Create) | AI | added a check in Create method for time to be in the future|
+| R6 | RoomHub.Api.Services.BookingService (metoda Create) | AI | added the missing validation in Create method |
+| R7 | RoomHub.Api.Services.BookingService (liniile 26-30 in foreach) | AI | changed from <= to < so two cosecutive intervals are not considered overlapping |
+| R7 | RoomHub.Api.Services.BookingService (liniile 26-30 in foreach) | AI | checks to not have status cancelled |
+| R8 | RoomHub.Api.Services.BookingService (liniile 56-61 in functia Cancel) | AI | if it's already cancelled return 409 |
+| R8 | RoomHub.Api.Models.Booking (liniile 56-61 in functia Cancel) | AI | made private set on BookingStatus and only modify it in Cancel method |
