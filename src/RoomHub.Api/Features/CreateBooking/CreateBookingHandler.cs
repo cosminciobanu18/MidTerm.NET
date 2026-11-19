@@ -19,7 +19,10 @@ public class CreateBookingHandler(
                 Error.NotFound("RoomNotFound", "The room does not exist.")));
         }
 
-        var existingBookings = bookings.ListForRoom(command.RoomId);
+        var existingRoomBookings = bookings.ListForRoom(command.RoomId);
+        var existingParticipantBookings = !string.IsNullOrWhiteSpace(command.BookedBy)
+            ? bookings.ListActiveForParticipantOnDate(command.BookedBy.Trim(), command.StartUtc)
+            : [];
 
         var result = Booking.Create(
             room,
@@ -27,7 +30,8 @@ public class CreateBookingHandler(
             command.StartUtc,
             command.EndUtc,
             command.Attendees,
-            existingBookings,
+            existingRoomBookings,
+            existingParticipantBookings,
             timeProvider);
 
         if (result.IsSuccess)

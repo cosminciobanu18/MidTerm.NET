@@ -30,4 +30,15 @@ public class BookingRepository
             return _bookings.Where(b => b.RoomId == roomId).ToList();
         }
     }
+
+    public List<Booking> ListActiveForParticipantOnDate(string bookedBy, DateTime date)
+    {
+        lock (_lock)
+        {
+            return _bookings.Where(b =>
+                b.Status == BookingStatus.Active &&
+                string.Equals(b.BookedBy, bookedBy, StringComparison.OrdinalIgnoreCase) &&
+                b.StartUtc.Date == date.Date).ToList();
+        }
+    }
 }

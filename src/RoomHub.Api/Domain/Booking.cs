@@ -38,7 +38,8 @@ public class Booking
         DateTime startUtc,
         DateTime endUtc,
         int attendees,
-        IEnumerable<Booking> existingBookings,
+        IEnumerable<Booking> existingRoomBookings,
+        IEnumerable<Booking> existingParticipantBookings,
         TimeProvider timeProvider)
     {
         if (string.IsNullOrWhiteSpace(bookedBy))
@@ -72,13 +73,21 @@ public class Booking
                 Error.Validation("PastStart", "Booking cannot start in the past."));
         }
 
-        if (endUtc - startUtc > TimeSpan.FromHours(4))
+        var maxDuration = room.Capacity > 10
+            ? TimeSpan.FromHours(2)
+            : TimeSpan.FromHours(4);
+
+        if (endUtc - startUtc > maxDuration)
         {
+            var message = room.Capacity > 10
+                ? "Rooms with capacity greater than 10 can be booked for at most 2 hours."
+                : "Maximum booking duration is 4 hours.";
+
             return Result<Booking>.Failure(
-                Error.Validation("DurationExceeded", "Maximum booking duration is 4 hours."));
+                Error.Validation("DurationExceeded", message));
         }
 
-        foreach (var existing in existingBookings)
+        foreach (var existing in existingRoomBookings)
         {
             if (existing.RoomId == room.Id &&
                 existing.Status == BookingStatus.Active &&
@@ -88,6 +97,17 @@ public class Booking
                 return Result<Booking>.Failure(
                     Error.Conflict("RoomOccupied", "The room is occupied in this interval."));
             }
+        }
+
+        var activeParticipantBookingsCount = existingParticipantBookings
+            .Count(b => b.Status == BookingStatus.Active &&
+                        string.Equals(b.BookedBy, bookedBy.Trim(), StringComparison.OrdinalIgnoreCase) &&
+                        b.StartUtc.Date == startUtc.Date);
+
+        if (activeParticipantBookingsCount >= 2)
+        {
+            return Result<Booking>.Failure(
+                Error.Conflict("ParticipantDailyLimitExceeded", "A participant cannot have more than 2 active bookings per day."));
         }
 
         var booking = new Booking(
@@ -102,12 +122,19 @@ public class Booking
         return Result<Booking>.Success(booking);
     }
 
-    public Result Cancel()
+    public Result Cancel(TimeProvider timeProvider)
     {
         if (Status == BookingStatus.Cancelled)
         {
             return Result.Failure(
                 Error.Conflict("AlreadyCancelled", "The booking is already cancelled."));
+        }
+
+        var nowUtc = timeProvider.GetUtcNow().UtcDateTime;
+        if (StartUtc - nowUtc < TimeSpan.FromMinutes(60))
+        {
+            return Result.Failure(
+                Error.Conflict("TooLateToCancel", "A booking can be cancelled only if it starts at least 60 minutes from now."));
         }
 
         Status = BookingStatus.Cancelled;
